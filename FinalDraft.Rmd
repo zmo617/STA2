@@ -1,0 +1,488 @@
+---
+title: "Exercises"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Green Buildings
+```{r, include=FALSE }
+library(ggplot2)
+library(broom)
+gb = read.csv('greenbuildings.csv', header=TRUE)
+attach(gb)
+gb=na.omit(gb)
+
+#SCALE
+gb[, -c(1,2,9,10,11,12,13,14,15,16)] <- scale(gb[, -c(1,2,9,10,11,12,13,14,15,16)])
+#green buildings
+ggb = subset(gb, green_rating == 1)
+######lms ########
+alm = lm(Rent~stories + size + age + renovated + class_a + class_b + 
+           green_rating + net + Gas_Costs + Electricity_Costs + cluster_rent)
+
+smy_alm = summary(alm)
+greenp = smy_alm$coefficients[8,4]  
+acoeffs = tidy(alm, conf.int = TRUE)
+###remove stories, age, renovated, reduced p value of green from 0.134 to 0.0661
+#could be that green means newer and thus less likely renovated buildings. 
+alm2 = lm(Rent~size + class_a + class_b + 
+           green_rating + net + Gas_Costs + Electricity_Costs + cluster_rent)
+smy_alm2 = summary(alm2)
+
+####taking out gas, 0.0347
+alm3 = lm(Rent~size + class_a + class_b + 
+           green_rating + net + Electricity_Costs + cluster_rent)
+smy_alm3 = summary(alm3)
+
+####taking out electricity & gas, 0.027
+alm4 = lm(Rent~size + class_a + class_b + 
+            green_rating + net + cluster_rent)
+summary(alm4)
+
+####taking out electricity, 0.0418
+alm5 = lm(Rent~size + class_a + class_b + 
+            green_rating + net + Gas_Costs +cluster_rent)
+smy_alm5 = summary(alm5)
+
+####taking out class_b , 
+alm8 = lm(Rent~size + class_a + Electricity_Costs + 
+            green_rating + net + Gas_Costs +cluster_rent)
+smy_alm8 = summary(alm8)
+
+###. taking out solely class_a, 0.000219
+alm7 = lm(Rent~size + class_b + Electricity_Costs +
+            green_rating + net + Gas_Costs +cluster_rent)
+summary(alm7)
+smy_alm7 = summary(alm7)
+
+#### taking out class_a+gas, 9.06e-05, green -> higher quality
+alm6 = lm(Rent~size + class_b + Electricity_Costs +
+            green_rating + net + cluster_rent)
+smy_alm6 = summary(alm6)
+
+#######green p
+greenp =data.frame("idx" = c("original", "rm insignificant", "rm gas", 
+                                 "rm electricity", "rm class_a", "rm class_b", "rm class_a & gas"),
+                   "vals"= c(smy_alm$coefficients[8,4], smy_alm2$coefficients[5,4],
+                             smy_alm3$coefficients[5,4], smy_alm5$coefficients[5,4], 
+                             smy_alm7$coefficients[5,4], smy_alm8$coefficients[5,4],
+                             smy_alm6$coefficients[5,4]))
+```
+There are some parts I don’t agree with the guru. First of all, the guru is assuming green buildings have a higher rate by looking at green buildings and non-green buildings separately. Looking at the rent frequency histogram, there’s no significant distinction between the green and non-green buildings. 
+
+```{r, echo=FALSE}
+##### 1.1 ########
+ggplot(gb, aes(x=Rent, fill=factor(green_rating))) + 
+  geom_histogram(data = subset(gb, green_rating == 1), aes(y = stat(count) / sum(count)), alpha = 0.2) + 
+  geom_histogram(data = subset(gb, green_rating != 1), aes(y = stat(count) / sum(count)), alpha = 0.2) + 
+  scale_fill_manual(name="green_rating",values=c("red","blue"),labels=c("not green","green"))
+```
+
+In addition, a linear regression on whole dataset shows that there’s no significant correlation between rent and green_rating, as green_rating has a p value of 0.13. However, there's a chance that some of the variables are confounders for the relationship between rent and green, given the disproportionate coefficient plot. 
+```{r, echo=FALSE}
+#####1.2
+ggplot(acoeffs, aes(term, estimate))+
+  geom_point()+
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+  labs(title = "Coefficients")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+As we remove the insignificant variables and gas, the p value of green drops from 0.134 to 0.035. So green_rating might be correlated with gas as green buildings should have lower recurring costs by design. But the most significant confounder is class_a as the p value of green drops from 0.134 to 0.000219. 
+
+```{r, echo=FALSE}
+ggplot(greenp, aes(x = reorder(idx, -vals), y = vals, label=vals)) +
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+Taking out both will make the p value of green 5.32e-05 and result in a seemingly more reasonable coefficient plot.
+
+```{r, echo=FALSE}
+#coeffs of alm6
+coeffs6 = tidy(alm6, conf.int = TRUE)
+ggplot(coeffs6, aes(term, estimate))+
+  geom_point()+
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+  labs(title = "Coefficients")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+  From the models, we can see that only size and cluster_rent are significantly correlated with rent and cluster_rent has a very positive relationship with rent. 
+```{r, include=FALSE}
+############glm
+glm = lm(ggb$Rent~ggb$stories + ggb$size + ggb$age + ggb$renovated + ggb$class_a + 
+          ggb$class_b + ggb$net + ggb$Gas_Costs + ggb$Electricity_Costs + ggb$cluster_rent)
+summary(glm)
+
+glm2 = lm(ggb$Rent~ggb$size + ggb$class_b + ggb$Electricity_Costs + ggb$cluster_rent)
+summary(glm2)
+```
+```{r, echo=FALSE}
+#coeffs of glm2
+glm_coef = tidy(glm2, conf.int = TRUE)
+ggplot(glm_coef, aes(term, estimate))+
+  geom_point()+
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+  labs(title = "Coefficients")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+Since the new building would be in Austin and the database is nationwide, the best way to improve the prediction is to use the nearest clusters to predict rent. 
+
+## ABIA
+```{r, include=FALSE}
+library(ggplot2)
+abia = read.csv('ABIA.csv', header=TRUE)
+attach(abia)
+abia$Type <- NA
+abia$Type[CarrierDelay>0] <- "Carrier"
+abia$Type[WeatherDelay>0] <- "Weather"
+abia$Type[NASDelay>0] <- "NAS"
+abia$Type[SecurityDelay>0] <- "Security"
+abia$Type[LateAircraftDelay>0] <- "LateAircraft"
+
+arrDelay = subset(abia, ArrDelay>0)
+cancels = subset(abia, Cancelled != 0)
+```
+```{r, echo=FALSE}
+ggplot(arrDelay,aes(x=Type, fill=Type)) + 
+  geom_bar() + 
+  facet_wrap(~DayOfWeek, nrow = 1)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+The flights into and out of Austin had some interesting delay patterns. When we look at the number of flights that arrived late during each day of the week, we can see that Late Aircraft is the most frequent kind of delays and security was the least frequent. There's a big drop in Late Aircraft delays from Fridays to Saturdays, which could be because there are fewer flights during the weekend and less traffic in the air and on the ground. So the airplanes need not wait for their turns to use the runway and take off. The proportion of the other kinds of delays are stable throughout the week, which makes sense since they're either related to weather or rare events. 
+```{r, echo=FALSE}
+ggplot(arrDelay,aes(x=Type, fill=Type)) + 
+  geom_bar() + 
+  facet_wrap(~Month, nrow = 1)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggplot(arrDelay, aes(x=Month, y=ArrDelay)) + 
+  geom_bar(stat='identity')
+```
+Looking at delays throughout the year, we can see that the number of delays are significantly low from September to November and has abnormal highs in March and June. The low in Fall could be that the weather in Austin are more stable or better for flying in this season. Or people may travel to Austin less in this quarter and go home for holiday reasons. The high in March is apparently due to the SXSW Festival and the one in June can be explained by the increasing traffic in the air as a result of the urge to travel in the beginning of summer holidays.
+Most types of delays swing with this trend, which could mean that they are internally related in some way. 
+```{r,echo=FALSE}
+ggplot(cancels,aes(x=CancellationCode, fill=CancellationCode)) + 
+  geom_bar() + 
+  facet_wrap(~DayOfWeek, nrow = 1)
+  
+ggplot(cancels,aes(x=CancellationCode, fill=CancellationCode)) + 
+  geom_bar() + 
+  facet_wrap(~Month, nrow = 1)
+```
+Looking at cancellation patterns, it is surprising that carrier cancellation seems to happen particularly often in April, which has a moderate temperature. Maybe vehical issues and device issues are not the leading factors here. On the contrary, weather cancellation is high in September as we'd expect. It's not uncommon to have some storms in that month. However, weather cancellation is also frequent in March. We will probably need more geographic knowledge to explain that.
+```{r, echo=FALSE}
+ggplot(data = arrDelay, aes(alpha=0.6)) + 
+  geom_point(mapping = aes(x = DepDelay, y = ArrDelay, color = Type))
+
+
+ggplot(data = abia, aes(alpha=0.6)) + 
+  geom_point(mapping = aes(x = DepDelay, y = ArrDelay, color = Type))
+```
+Lastly, I tried to explore the relationship among departure delay, arrival delay, and the type of delay. The first graph looks at only the late arrivals. It's not surprising that a late arrival tend to a result of a late departure. However, some flights that departed early might also arrive late because of "NAS" reasons, where a type of weather delay "could be reduced with corrective action by the airports or the Federal Aviation Administration"(bts.gov). So even though many flights left on time or early, their arrival delayed for hours. The second graph looks at all departure and arrival times. We can see a dense region where many flights, though departed only on time, or sometimes even late, managed to arrive early.
+
+## Portfolio modeling
+```{r, include=FALSE}
+library(mosaic)
+library(quantmod)
+library(foreach)
+mystocks = c("HYG", "SDY", "XLE","JNK","ANGL","XOP","PEY","TILT","FAD","FILL","HYS")
+myprices = getSymbols(mystocks, from = "2015-01-01")
+getSymbols(mystocks)
+for(ticker in mystocks) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+all_returns1 = cbind(ClCl(HYGa),ClCl(SDYa),ClCl(XLEa),ClCl(JNKa))
+all_returns1 = as.matrix(na.omit(all_returns1))
+all_returns2 = cbind(	ClCl(ANGLa), ClCl(XOPa),ClCl(PEYa),ClCl(TILTa))
+all_returns2 = as.matrix(na.omit(all_returns2))
+all_returns3 = cbind(ClCl(FADa),ClCl(FILLa),ClCl(HYSa))
+all_returns3 = as.matrix(na.omit(all_returns3))
+
+initial_wealth=100000
+sim1 = foreach(i=1:50000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.25,0.25,0.25,0.25)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns1, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+hist(sim1[,n_days], 25)
+
+# Profit/loss
+mean(sim1[,n_days])
+mean(sim1[,n_days] - initial_wealth)#369.3709
+
+# 5% value at risk:
+quantile(sim1[,n_days]- initial_wealth, prob=0.05)#7641.238 
+
+###########sim2
+sim2 = foreach(i=1:50000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.25,0.25,0.25,0.25)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns2, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+
+mean(sim2[,n_days] - initial_wealth)#336
+# 5% value at risk:
+quantile(sim2[,n_days]- initial_wealth, prob=0.05)#8447.966
+
+#############sim3
+sim3 = foreach(i=1:50000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.4,0.3,0.3)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns3, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+
+mean(sim3[,n_days] - initial_wealth)#491.8467
+hist(sim3[,n_days]- initial_wealth, breaks=30,xlab="Portfolio 1, final - initial")
+
+# 5% value at risk:
+quantile(sim3[,n_days]- initial_wealth, prob=0.05)#6363.248 
+```
+I picked 11 EFTs from 3 categories: high-yield, energy, and all-cap.
+```{r, echo=FALSE}
+hist(sim1[,n_days], breaks=25,xlab="Portfolio 1, final - initial")
+```
+Porfolio 1 has 3 high-yields and 1 energy, equally weighted. It's expected to earn 369 dollars in 20 days and has a tail risk of 7641 dollars at the 5% level.
+```{r, echo=FALSE}
+hist(sim2[,n_days], breaks=25,xlab="Portfolio 2, final - initial")
+```
+Portfolio 2 has 1 high-yield, 1 energy, and 2 all-caps, equally weighted. It's estimated to earn 336 dollars on average in 20 days and has a tail risk of 8447 dollars at the 5% level.
+```{r, echo=FALSE}
+hist(sim3[,n_days], breaks=25,xlab="Portfolio 3, final - initial")
+```
+Portfolio 3 has 1 all-cap (40%), 1 high-yield(30%), and 1 energy(30%). It's expected to earn 492 dollars on average in 20 days and has a tail risk of 6383 dollars at the 5% level.
+Overall, Portfolio 3 has a higher earning on average and a lower tail risk. Portfolio 2 has the lowest expected earning and highest tail risk. 
+
+## Market Segmentation
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(LICORS) 
+library(foreach)
+library(mosaic)
+df = read.csv("social_marketing.csv", header=TRUE)
+rdf = df[,-1]
+colsums=data.frame(value=apply(rdf,2,sum))
+colsums$group=rownames(colsums)
+```
+```{r, echo=FALSE}
+## top - photo-sharing, health_nutrition, cooking, politics,spoets, travel,college(college students, general)
+ggplot(data=colsums, aes(x=reorder(group,-value), y=value, fill=group)) +
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+I first summed the number of times each category label appears in a tweet and sorted it. This is not very helpful. I decided to use fractions instead of counts since some users may tweet a lot while others don't. So the fraction shows more about the user. 
+```{r, include=FALSE}
+userFrac = rdf/ rowSums(rdf)
+rdf$maxFrac = apply(userFrac, 1, function(x) max(x))
+```
+
+```{r, echo=FALSE}
+hist(rdf$maxFrac)
+```
+Given the histogram of the fractions we can decide that 40% is large enough to decide if the user is a bot so I excluded them. 
+It seems to me that clustering is a better choice here since we don't have a y variable to predict. I decided to do 3 clusters based on Gap's result.
+```{r, include=FALSE}
+#exclude the 3 users that post adult/spam more than 40% of the time. 
+userFrac = userFrac[!(userFrac$spam > 0.4) | (userFrac$adult > 0.4),]
+#use userFrac instead of rdf bc some users may tweet a lot while others don't. So the fraction shows more about the user
+frac = subset(userFrac, select = -c(chatter,adult,spam,uncategorized))
+group = colnames(frac)
+library(cluster)
+#frac_gap = clusGap(frac, FUN = kmeans, nstart = 25, K.max = 6, B = 50)#commenting this out because it takes forever to knit
+#plot(frac_gap)
+clust1 = kmeans(frac, 3, nstart=25)
+#####
+c11 = data.frame(value=clust1$center[1,])
+########
+c12 = data.frame(value=clust1$center[2,])
+######
+c13 = data.frame(value=clust1$center[3,])
+```
+```{r, echo=FALSE}
+c11$group = group
+ggplot(data=c11, aes(x=reorder(group,-value), y=value, fill=group)) +
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+Top categories in cluster 1 include photo_sharing, current_events, college, cooking, shopping, sports, etc. To me, it looks like they are young adults, specifically college students or rising college students. 
+
+```{r, echo=FALSE}
+c12$group = group
+ggplot(data=c12, aes(x=reorder(group,-value), y=value, fill=group)) +
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+Top categories in cluster 2 include politics, news, travel, sports_fandom, automotive, etc. To me, it looks like they are styreotypical men who care about politics, what's happening in the world, and sports and cars.
+```{r, echo=FALSE}
+c13$group = group
+ggplot(data=c13, aes(x=reorder(group,-value), y=value, fill=group)) +
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+Top categories in cluster 3 include health, personal_fitness, cooking, photo_sharing, outdoors, food, etc. To me, it looks like they care about physical health and physique. They'd probably buy organic food or go to wholefoods.
+
+## Author Attribution
+First read in all folders in C50train. Each folder represents an author so for each author, get the author name from folder name, and read in all documents in that folder and add them to the training set for x. Meanwhile we add 50 author names to the training set for y to match the size of trainx.
+```{r, include=FALSE}
+library(tm) 
+library(slam)
+library(proxy)
+library(caret)
+
+readerPlain = function(fname){
+  readPlain(elem=list(content=readLines(fname)), 
+            id=fname, language='en') }
+
+trainDir = Sys.glob('../data/ReutersC50/C50train/*')
+trainx = NULL
+trainy = NULL
+
+for (a in trainDir){ 
+  author = strsplit(a, split = "/")[[1]][5]
+  allDoc = Sys.glob(paste0(a,'/*.txt'))
+  trainx=append(trainx,allDoc)
+  trainy=append(trainy,rep(author,length(allDoc)))
+}
+
+train = lapply(trainx, readerPlain) 
+mynames = trainx %>%
+  { strsplit(., '/', fixed = TRUE) } %>%
+  { lapply(., tail, n = 2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+names(train) = mynames
+trainCorp_r = Corpus(VectorSource(train))
+
+trainCorp = trainCorp_r %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+trainCorp = tm_map(trainCorp, content_transformer(removeWords), stopwords("en"))
+```
+ Then create the corpus witthh the training set and clean the file name, do the pre-processing and tokenization, build DTM, and remove sparse terms, as shown in lecture. After we make the weighted DTM into a matrix, we do the same for the test folder.
+ 
+```{r,include=FALSE}
+DTM_tr = DocumentTermMatrix(trainCorp)
+DTM_tr = removeSparseTerms(DTM_tr, 0.95)
+tfidf_tr = weightTfIdf(DTM_tr)
+
+X_tr = as.matrix(tfidf_tr) #X
+
+test=Sys.glob('../data/ReutersC50/C50test/*')
+testx = NULL
+testy = NULL
+for (a in test){ 
+  author = strsplit(a, split = "/")[[1]][5]
+  allDoc = Sys.glob(paste0(a,'/*.txt'))
+  testx = append(testx,allDoc)
+  testy = append(testy ,rep(author, length(allDoc)))
+}
+
+#Cleaning the file names!!
+test = lapply(testx, readerPlain) 
+mynames2 = testx %>%
+  { strsplit(., '/', fixed = TRUE) } %>%
+  { lapply(., tail, n = 2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+names(test) = mynames2
+#Create a text mining corpus
+testCorp_r = Corpus(VectorSource(test))
+
+testCorp = testCorp_r %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+testCorp = tm_map(testCorp, content_transformer(removeWords), stopwords("en"))
+```
+We build the DTM for test set with the dictionary of the DTM of train set.
+
+```{r,include=FALSE}
+DTM_te = DocumentTermMatrix(testCorp, list(dictionary = colnames(DTM_tr)))
+tfidf_te = weightTfIdf(DTM_te)
+X_te = as.matrix(tfidf_te) 
+
+scrub_cols = which(colSums(X_tr) == 0)
+X_tr = X_tr[,-scrub_cols]
+scrub_cols2 = which(colSums(X_te) == 0)
+X_te = X_te[,-scrub_cols2]
+```
+
+Then we use PCA to reduce dimension. I did 30 summaries because bigger ranks broke my laptop, and that suggests using PC1 to PC10 are enough. We ignore the words that are in test set but not in train set by only fitting the model with intersection of the train and test sets. Finally, we use knn to see our accuracy.
+
+```{r,include=FALSE}
+#pca = prcomp(DTM_trr_1,scale=TRUE,rank=30)# commented it out bc it takes forever to knit
+```
+
+## Association Rule
+```{r,include=FALSE}
+library(tidyverse)
+library(arules)  
+library(arulesViz)
+library(dplyr)
+
+gro_raw = scan("groceries.txt", what = "", sep = "\n")
+gro = strsplit(gro_raw, ",")
+grotrans = as(gro, "transactions")
+```
+```{r,echo=FALSE}
+itemFrequencyPlot(grotrans, topN = 30)
+rule1 = apriori(grotrans,parameter=list(support=0.05, confidence=.2, minlen=2))
+inspect(rule1)
+rule11 = apriori(grotrans,parameter=list(support=0.01, confidence=.2, minlen=2))
+plot(rule11)
+```
+Given the frequency plot we can see that the item frequency smooths down to around 0.05, so I decided to set support = 0.05. For simplicity, I set length to 2 so we only look at 2 items. And a arbitrary confidence=0.2. The generated rules are mostly dairies including milk and yogurt, and buns that go with milk. It is pretty likely that who buys milk will buy yogurt and vegetables and vice versa. This makes sense since they are commodities that constantly need restock bc go bad easily.
+
+To see more rules, I lowered support to 0.01 which would give 125 rules. That is too many so I raised it to 0.02 and got 72 rules. Now we can see proteins, drinks, fruit and other commodities that people buy frequently. 
+```{r,echo=FALSE}
+rule2 = apriori(grotrans, parameter=list(support=0.02, confidence=.2, minlen=2))
+inspect(rule2)
+```
+There's only 1 rule with support = 0.02 and confidence = 0.5 so I set confidence to 0.4 and got 15 rules.
+```{r,echo=FALSE}
+rule3 = apriori(grotrans,parameter=list(support=0.02, confidence=.4, minlen=2))
+inspect(rule3)
+```
+This case is like a combination of rule 1 and 2 and shows relationships between whole milk and other perishables. The takeaway might be that people buy whole milk the most often.
