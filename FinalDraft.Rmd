@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Green Buildings
-```{r, include=FALSE }
+```{r 1, include=FALSE }
 library(ggplot2)
 library(broom)
 gb = read.csv('greenbuildings.csv', header=TRUE)
@@ -73,7 +73,7 @@ greenp =data.frame("idx" = c("original", "rm insignificant", "rm gas",
 ```
 There are some parts I don’t agree with the guru. First of all, the guru is assuming green buildings have a higher rate by looking at green buildings and non-green buildings separately. Looking at the rent frequency histogram, there’s no significant distinction between the green and non-green buildings. 
 
-```{r, echo=FALSE}
+```{r 1.1, echo=FALSE}
 ##### 1.1 ########
 ggplot(gb, aes(x=Rent, fill=factor(green_rating))) + 
   geom_histogram(data = subset(gb, green_rating == 1), aes(y = stat(count) / sum(count)), alpha = 0.2) + 
@@ -82,7 +82,7 @@ ggplot(gb, aes(x=Rent, fill=factor(green_rating))) +
 ```
 
 In addition, a linear regression on whole dataset shows that there’s no significant correlation between rent and green_rating, as green_rating has a p value of 0.13. However, there's a chance that some of the variables are confounders for the relationship between rent and green, given the disproportionate coefficient plot. 
-```{r, echo=FALSE}
+```{r 1.2, echo=FALSE}
 #####1.2
 ggplot(acoeffs, aes(term, estimate))+
   geom_point()+
@@ -93,7 +93,7 @@ ggplot(acoeffs, aes(term, estimate))+
 
 As we remove the insignificant variables and gas, the p value of green drops from 0.134 to 0.035. So green_rating might be correlated with gas as green buildings should have lower recurring costs by design. But the most significant confounder is class_a as the p value of green drops from 0.134 to 0.000219. 
 
-```{r, echo=FALSE}
+```{r 1.3, echo=FALSE}
 ggplot(greenp, aes(x = reorder(idx, -vals), y = vals, label=vals)) +
   geom_point()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
@@ -101,7 +101,7 @@ ggplot(greenp, aes(x = reorder(idx, -vals), y = vals, label=vals)) +
 
 Taking out both will make the p value of green 5.32e-05 and result in a seemingly more reasonable coefficient plot.
 
-```{r, echo=FALSE}
+```{r 1.4, echo=FALSE}
 #coeffs of alm6
 coeffs6 = tidy(alm6, conf.int = TRUE)
 ggplot(coeffs6, aes(term, estimate))+
@@ -112,7 +112,7 @@ ggplot(coeffs6, aes(term, estimate))+
 ```
 
   From the models, we can see that only size and cluster_rent are significantly correlated with rent and cluster_rent has a very positive relationship with rent. 
-```{r, include=FALSE}
+```{r 1.5, include=FALSE}
 ############glm
 glm = lm(ggb$Rent~ggb$stories + ggb$size + ggb$age + ggb$renovated + ggb$class_a + 
           ggb$class_b + ggb$net + ggb$Gas_Costs + ggb$Electricity_Costs + ggb$cluster_rent)
@@ -121,7 +121,7 @@ summary(glm)
 glm2 = lm(ggb$Rent~ggb$size + ggb$class_b + ggb$Electricity_Costs + ggb$cluster_rent)
 summary(glm2)
 ```
-```{r, echo=FALSE}
+```{r 1.6, echo=FALSE}
 #coeffs of glm2
 glm_coef = tidy(glm2, conf.int = TRUE)
 ggplot(glm_coef, aes(term, estimate))+
@@ -134,7 +134,7 @@ ggplot(glm_coef, aes(term, estimate))+
 Since the new building would be in Austin and the database is nationwide, the best way to improve the prediction is to use the nearest clusters to predict rent. 
 
 ## ABIA
-```{r, include=FALSE}
+```{r 2.1, include=FALSE}
 library(ggplot2)
 abia = read.csv('ABIA.csv', header=TRUE)
 attach(abia)
@@ -148,14 +148,14 @@ abia$Type[LateAircraftDelay>0] <- "LateAircraft"
 arrDelay = subset(abia, ArrDelay>0)
 cancels = subset(abia, Cancelled != 0)
 ```
-```{r, echo=FALSE}
+```{r 2.2, echo=FALSE}
 ggplot(arrDelay,aes(x=Type, fill=Type)) + 
   geom_bar() + 
   facet_wrap(~DayOfWeek, nrow = 1)+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 The flights into and out of Austin had some interesting delay patterns. When we look at the number of flights that arrived late during each day of the week, we can see that Late Aircraft is the most frequent kind of delays and security was the least frequent. There's a big drop in Late Aircraft delays from Fridays to Saturdays, which could be because there are fewer flights during the weekend and less traffic in the air and on the ground. So the airplanes need not wait for their turns to use the runway and take off. The proportion of the other kinds of delays are stable throughout the week, which makes sense since they're either related to weather or rare events. 
-```{r, echo=FALSE}
+```{r 2.3, echo=FALSE}
 ggplot(arrDelay,aes(x=Type, fill=Type)) + 
   geom_bar() + 
   facet_wrap(~Month, nrow = 1)+
@@ -166,7 +166,7 @@ ggplot(arrDelay, aes(x=Month, y=ArrDelay)) +
 ```
 Looking at delays throughout the year, we can see that the number of delays are significantly low from September to November and has abnormal highs in March and June. The low in Fall could be that the weather in Austin are more stable or better for flying in this season. Or people may travel to Austin less in this quarter and go home for holiday reasons. The high in March is apparently due to the SXSW Festival and the one in June can be explained by the increasing traffic in the air as a result of the urge to travel in the beginning of summer holidays.
 Most types of delays swing with this trend, which could mean that they are internally related in some way. 
-```{r,echo=FALSE}
+```{r 2.4,echo=FALSE}
 ggplot(cancels,aes(x=CancellationCode, fill=CancellationCode)) + 
   geom_bar() + 
   facet_wrap(~DayOfWeek, nrow = 1)
@@ -176,7 +176,7 @@ ggplot(cancels,aes(x=CancellationCode, fill=CancellationCode)) +
   facet_wrap(~Month, nrow = 1)
 ```
 Looking at cancellation patterns, it is surprising that carrier cancellation seems to happen particularly often in April, which has a moderate temperature. Maybe vehical issues and device issues are not the leading factors here. On the contrary, weather cancellation is high in September as we'd expect. It's not uncommon to have some storms in that month. However, weather cancellation is also frequent in March. We will probably need more geographic knowledge to explain that.
-```{r, echo=FALSE}
+```{r 2.5, echo=FALSE}
 ggplot(data = arrDelay, aes(alpha=0.6)) + 
   geom_point(mapping = aes(x = DepDelay, y = ArrDelay, color = Type))
 
@@ -187,7 +187,7 @@ ggplot(data = abia, aes(alpha=0.6)) +
 Lastly, I tried to explore the relationship among departure delay, arrival delay, and the type of delay. The first graph looks at only the late arrivals. It's not surprising that a late arrival tend to a result of a late departure. However, some flights that departed early might also arrive late because of "NAS" reasons, where a type of weather delay "could be reduced with corrective action by the airports or the Federal Aviation Administration"(bts.gov). So even though many flights left on time or early, their arrival delayed for hours. The second graph looks at all departure and arrival times. We can see a dense region where many flights, though departed only on time, or sometimes even late, managed to arrive early.
 
 ## Portfolio modeling
-```{r, include=FALSE}
+```{r 3.1, include=FALSE}
 library(mosaic)
 library(quantmod)
 library(foreach)
@@ -272,15 +272,15 @@ hist(sim3[,n_days]- initial_wealth, breaks=30,xlab="Portfolio 1, final - initial
 quantile(sim3[,n_days]- initial_wealth, prob=0.05)#6363.248 
 ```
 I picked 11 EFTs from 3 categories: high-yield, energy, and all-cap.
-```{r, echo=FALSE}
+```{r 3.2, echo=FALSE}
 hist(sim1[,n_days], breaks=25,xlab="Portfolio 1, final - initial")
 ```
 Porfolio 1 has 3 high-yields and 1 energy, equally weighted. It's expected to earn 369 dollars in 20 days and has a tail risk of 7641 dollars at the 5% level.
-```{r, echo=FALSE}
+```{r 3.3, echo=FALSE}
 hist(sim2[,n_days], breaks=25,xlab="Portfolio 2, final - initial")
 ```
 Portfolio 2 has 1 high-yield, 1 energy, and 2 all-caps, equally weighted. It's estimated to earn 336 dollars on average in 20 days and has a tail risk of 8447 dollars at the 5% level.
-```{r, echo=FALSE}
+```{r 3.4, echo=FALSE}
 hist(sim3[,n_days], breaks=25,xlab="Portfolio 3, final - initial")
 ```
 Portfolio 3 has 1 all-cap (40%), 1 high-yield(30%), and 1 energy(30%). It's expected to earn 492 dollars on average in 20 days and has a tail risk of 6383 dollars at the 5% level.
@@ -288,7 +288,7 @@ Overall, Portfolio 3 has a higher earning on average and a lower tail risk. Port
 
 ## Market Segmentation
 
-```{r, include=FALSE}
+```{r 4.1, include=FALSE}
 library(tidyverse)
 library(ggplot2)
 library(LICORS) 
@@ -299,24 +299,24 @@ rdf = df[,-1]
 colsums=data.frame(value=apply(rdf,2,sum))
 colsums$group=rownames(colsums)
 ```
-```{r, echo=FALSE}
+```{r 4.2, echo=FALSE}
 ## top - photo-sharing, health_nutrition, cooking, politics,spoets, travel,college(college students, general)
 ggplot(data=colsums, aes(x=reorder(group,-value), y=value, fill=group)) +
   geom_bar(stat="identity")+
   coord_flip()
 ```
 I first summed the number of times each category label appears in a tweet and sorted it. This is not very helpful. I decided to use fractions instead of counts since some users may tweet a lot while others don't. So the fraction shows more about the user. 
-```{r, include=FALSE}
+```{r 4.3, include=FALSE}
 userFrac = rdf/ rowSums(rdf)
 rdf$maxFrac = apply(userFrac, 1, function(x) max(x))
 ```
 
-```{r, echo=FALSE}
+```{r 4.4, echo=FALSE}
 hist(rdf$maxFrac)
 ```
 Given the histogram of the fractions we can decide that 40% is large enough to decide if the user is a bot so I excluded them. 
-It seems to me that clustering is a better choice here since we don't have a y variable to predict. I decided to do 3 clusters based on Gap's result.
-```{r, include=FALSE}
+It seems to me that clustering is a better choice here since we don't have a y variable to predict. I decided to do 3 clusters based on Gap's result. The Gap code is commented out as it takes too long to knit.
+```{r 4.5, include=FALSE}
 #exclude the 3 users that post adult/spam more than 40% of the time. 
 userFrac = userFrac[!(userFrac$spam > 0.4) | (userFrac$adult > 0.4),]
 #use userFrac instead of rdf bc some users may tweet a lot while others don't. So the fraction shows more about the user
@@ -333,7 +333,7 @@ c12 = data.frame(value=clust1$center[2,])
 ######
 c13 = data.frame(value=clust1$center[3,])
 ```
-```{r, echo=FALSE}
+```{r 4.6, echo=FALSE}
 c11$group = group
 ggplot(data=c11, aes(x=reorder(group,-value), y=value, fill=group)) +
   geom_bar(stat="identity")+
@@ -341,14 +341,14 @@ ggplot(data=c11, aes(x=reorder(group,-value), y=value, fill=group)) +
 ```
 Top categories in cluster 1 include photo_sharing, current_events, college, cooking, shopping, sports, etc. To me, it looks like they are young adults, specifically college students or rising college students. 
 
-```{r, echo=FALSE}
+```{r 4.7, echo=FALSE}
 c12$group = group
 ggplot(data=c12, aes(x=reorder(group,-value), y=value, fill=group)) +
   geom_bar(stat="identity")+
   coord_flip()
 ```
 Top categories in cluster 2 include politics, news, travel, sports_fandom, automotive, etc. To me, it looks like they are styreotypical men who care about politics, what's happening in the world, and sports and cars.
-```{r, echo=FALSE}
+```{r 4.8, echo=FALSE}
 c13$group = group
 ggplot(data=c13, aes(x=reorder(group,-value), y=value, fill=group)) +
   geom_bar(stat="identity")+
@@ -358,7 +358,7 @@ Top categories in cluster 3 include health, personal_fitness, cooking, photo_sha
 
 ## Author Attribution
 First read in all folders in C50train. Each folder represents an author so for each author, get the author name from folder name, and read in all documents in that folder and add them to the training set for x. Meanwhile we add 50 author names to the training set for y to match the size of trainx.
-```{r, include=FALSE}
+```{r 5., include=FALSE}
 library(tm) 
 library(slam)
 library(proxy)
@@ -449,7 +449,7 @@ scrub_cols2 = which(colSums(X_te) == 0)
 X_te = X_te[,-scrub_cols2]
 ```
 
-Then we use PCA to reduce dimension. I did 30 summaries because bigger ranks broke my laptop, and that suggests using PC1 to PC10 are enough. We ignore the words that are in test set but not in train set by only fitting the model with intersection of the train and test sets. Finally, we use knn to see our accuracy.
+Then we use PCA to reduce dimension. I did 30 summaries because bigger ranks broke my laptop, and that suggests using PC1 to PC10 are enough. We ignore the words that are in test set but not in train set by only fitting the model with intersection of the train and test sets. Finally, we use knn to see our accuracy. (The pca code is commented out as it takes too long to knit).
 
 ```{r,include=FALSE}
 #pca = prcomp(DTM_trr_1,scale=TRUE,rank=30)# commented it out bc it takes forever to knit
@@ -476,12 +476,12 @@ plot(rule11)
 Given the frequency plot we can see that the item frequency smooths down to around 0.05, so I decided to set support = 0.05. For simplicity, I set length to 2 so we only look at 2 items. And a arbitrary confidence=0.2. The generated rules are mostly dairies including milk and yogurt, and buns that go with milk. It is pretty likely that who buys milk will buy yogurt and vegetables and vice versa. This makes sense since they are commodities that constantly need restock bc go bad easily.
 
 To see more rules, I lowered support to 0.01 which would give 125 rules. That is too many so I raised it to 0.02 and got 72 rules. Now we can see proteins, drinks, fruit and other commodities that people buy frequently. 
-```{r,echo=FALSE}
+```{r, include=FALSE}
 rule2 = apriori(grotrans, parameter=list(support=0.02, confidence=.2, minlen=2))
 inspect(rule2)
 ```
 There's only 1 rule with support = 0.02 and confidence = 0.5 so I set confidence to 0.4 and got 15 rules.
-```{r,echo=FALSE}
+```{r, include==FALSE}
 rule3 = apriori(grotrans,parameter=list(support=0.02, confidence=.4, minlen=2))
 inspect(rule3)
 ```
